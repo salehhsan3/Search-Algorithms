@@ -13,6 +13,7 @@ class GraphNode:
         self.cost = cost
         self.g_value = 0
         self.h_value = 0
+        self.f_value = 0
         self.weight = 0
 
 class Agent:
@@ -152,15 +153,6 @@ class UCSAgent(Agent):
                          next_node.action = act
                          next_node.cost = cost
 
-
-
-
-
-
-
-
-
-
 class GreedyAgent():
   
     def __init__(self) -> None:
@@ -169,13 +161,57 @@ class GreedyAgent():
     def search(self, env: FrozenLakeEnv) -> Tuple[List[int], int, float]:
         raise NotImplementedError
 
-class WeightedAStarAgent():
+class WeightedAStarAgent(Agent):
     
-    def __init__(self):
-        raise NotImplementedError
+    def __init__(self) -> None:
+        self.OPEN = queue.PriorityQueue()
+        super().__init__()
 
     def search(self, env: FrozenLakeEnv, h_weight) -> Tuple[List[int], int, float]:
-        raise NotImplementedError   
+        initial_node = GraphNode(env.s, None, None, None)
+        if env.is_final_state(initial_node.state):
+            return ([], 0, 0)
+        self.OPEN.put((initial_node.g_value,initial_node))
+        self.OPEN_SET[initial_node.state] = initial_node
+
+        while not self.OPEN.empty():
+            node_to_expand_idx, node_to_expand = self.OPEN.get()
+            del self.OPEN_SET[node_to_expand.state]
+            self.CLOSE[node_to_expand.state] = node_to_expand
+            if env.is_final_state(node_to_expand.state):
+                return self.get_path(node_to_expand,self.expanded_counter)
+            self.expanded_counter += 1
+
+            for act, tup in env.succ(node_to_expand.state).items():
+                next_state, cost, terminated = tup
+                # new_g_value = node_to_expand.g_value + cost
+                # new_f_value = (1)*new_g_value + (h_weight)*self.h_MSAP(next_state)
+                # self.OPEN_SET[next_state].f_value = new_f_value ## this info doesn't exist
+                if (next_state not in self.OPEN_SET) and (next_state not in self.CLOSE):
+                    new_node = GraphNode(next_state,node_to_expand,act,cost)
+                    new_node.g_value = node_to_expand.g_value + cost
+                    new_node.f_value = (1)*new_node.g_value + (h_weight)*self.h_MSAP(next_state)
+                    self.OPEN.put((new_node.f_value,new_node))
+                    self.OPEN_SET[next_state] = new_node
+                elif (next_state in self.OPEN_SET):
+                    curr_node = self.OPEN_SET[next_state]
+                    new_g_value = (node_to_expand.g_value + cost) # is this correct?
+                    new_f_value = (1)*new_g_value + (h_weight)*self.h_MSAP(next_state)
+                    if new_f_value < curr_node.f_value:
+                        curr_node.g_value = new_g_value
+                        curr_node.f_value = new_f_value
+                        self.OPEN.get() # essentially removes minimum element from PriorityQueue
+                        self.OPEN.put((curr_node.f_value,curr_node))
+                else: # next_state is in CLOSED
+                    curr_node = self.CLOSE[next_state]
+                    new_g_value = (node_to_expand.g_value + cost) # is this correct?
+                    new_f_value = (1)*new_g_value + (h_weight)*self.h_MSAP(next_state)
+                    if new_f_value < curr_node.f_value:
+                        curr_node.g_value = new_g_value
+                        curr_node.f_value = new_f_value
+                        self.OPEN.put((curr_node.f_value,curr_node))
+                        self.OPEN_SET[next_state] = curr_node
+                        del self.CLOSE[next_state]
 
 
 class IDAStarAgent():
