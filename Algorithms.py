@@ -4,6 +4,7 @@ from FrozenLakeEnv import FrozenLakeEnv
 from typing import List, Tuple
 import heapdict
 import queue
+from queue import PriorityQueue
 
 class GraphNode:
     def __init__(self,state,parent,action,cost):
@@ -37,7 +38,15 @@ class Agent:
         for g in G:
             goal_x, goal_y = env_.to_row_col()
 
-
+def updateKey(open_queue: PriorityQueue , open_set: dict, node_to_update: GraphNode, old_key:int, new_key:int  ) -> PriorityQueue() :
+    new_queue = queue.PriorityQueue()()
+    for key, node in open_set.items():
+        if node is node_to_update and key == old_key:
+            new_queue.put((new_key,node))
+        else:
+            new_queue.put((key,node))
+    return new_queue
+        
 class BFSAgent(Agent):
     def __init__(self) -> None:
         self.OPEN = queue.SimpleQueue()
@@ -184,9 +193,6 @@ class WeightedAStarAgent(Agent):
 
             for act, tup in env.succ(node_to_expand.state).items():
                 next_state, cost, terminated = tup
-                # new_g_value = node_to_expand.g_value + cost
-                # new_f_value = (1)*new_g_value + (h_weight)*self.h_MSAP(next_state)
-                # self.OPEN_SET[next_state].f_value = new_f_value ## this info doesn't exist
                 if (next_state not in self.OPEN_SET) and (next_state not in self.CLOSE):
                     new_node = GraphNode(next_state,node_to_expand,act,cost)
                     new_node.g_value = node_to_expand.g_value + cost
@@ -200,8 +206,8 @@ class WeightedAStarAgent(Agent):
                     if new_f_value < curr_node.f_value:
                         curr_node.g_value = new_g_value
                         curr_node.f_value = new_f_value
-                        self.OPEN.get() # essentially removes minimum element from PriorityQueue
-                        self.OPEN.put((curr_node.f_value,curr_node))
+                        # python stores seperate versions on key and node.values so the order shouldn't be a problem
+                        self.OPEN = updateKey(self.OPEN,self.OPEN_SET,curr_node,curr_node.f_value,new_f_value) #updates key in the queue
                 else: # next_state is in CLOSED
                     curr_node = self.CLOSE[next_state]
                     new_g_value = (node_to_expand.g_value + cost) # is this correct?
