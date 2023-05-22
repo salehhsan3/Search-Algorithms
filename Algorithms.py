@@ -292,7 +292,6 @@ class WeightedAStarAgent(Agent):
                         self.CLOSE.remove(next_state)
                         del self.CLOSED_DICT[next_state]
                         # after this the node is in OPEN so we're not going to make a duplicate
-                        # is there a need to "reexpand" node after adjusting it while it's in OPEN
 
 
 class IDAStarAgent(Agent):
