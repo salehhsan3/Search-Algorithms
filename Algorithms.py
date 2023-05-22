@@ -230,6 +230,7 @@ class WeightedAStarAgent(Agent):
     
     def __init__(self):
         self.OPEN = heapdict.heapdict()
+        self.CLOSED_DICT = {}
         super().__init__()
 
     def search(self, env: FrozenLakeEnv, h_weight) -> Tuple[List[int], float, int]:
@@ -240,14 +241,14 @@ class WeightedAStarAgent(Agent):
         self.OPEN = heapdict.heapdict()
         # self.OPEN_SET = dict()
         self.CLOSE = set()
+        self.CLOSED_DICT = {} # helpful in case a state is in CLOSED and we need to update it
         self.expanded_counter = 0
         self.OPEN[initial_state] = (initial_node.g_value, initial_node)
-        # self.OPEN_SET[initial_node.state] = initial_node
 
         while len(self.OPEN) > 0:
             node_to_expand_idx, (f_value, node_to_expand) = self.OPEN.popitem()
-            # del self.OPEN_SET[node_to_expand.state]
             self.CLOSE = self.CLOSE | {node_to_expand.state}
+            self.CLOSED_DICT[node_to_expand.state] = node_to_expand
             if env.is_final_state(node_to_expand.state):
                 return self.get_path(node_to_expand, self.expanded_counter)
             self.expanded_counter += 1
@@ -265,11 +266,10 @@ class WeightedAStarAgent(Agent):
                     new_f_value = (1 - h_weight)*new_node.g_value + h_weight*self.h_MSAP(env, env.goals, next_state)
 
                     self.OPEN[next_state] = (new_f_value, new_node)
-                    # self.OPEN_SET[next_state] = new_node
                 elif next_state in self.OPEN:
                     next_node = self.OPEN[next_state][1]
                     new_cost = node_to_expand.g_value + cost
-                    if new_cost < next_node.g_value:
+                    if new_cost < next_node.g_value: # since h_value and weight are consistent, the only difference is the g_value.
                         # shorter/cheaper path discovered, need to update g(v) and f(v) in queue:
                         next_node.g_value = new_cost
                         next_node.parent = node_to_expand
@@ -278,8 +278,21 @@ class WeightedAStarAgent(Agent):
                         new_value = (1 - h_weight)*next_node.g_value + h_weight*self.h_MSAP(env, env.goals, next_state)
                         self.OPEN[next_state] = (new_value, next_node)
                 else:
-                    # it's in CLOSED , and since Heuristic is consistent, no need to check
-                    continue
+                    curr_node = self.CLOSED_DICT[next_state]
+                    new_g_value = (node_to_expand.g_value + cost) 
+                    new_f_value = (1-h_weight)*new_g_value + (h_weight)*self.h_MSAP(env, env.goals, next_state)
+                    curr_f_value = (1-h_weight)*curr_node.g_value + (h_weight)*self.h_MSAP(env, env.goals, next_state)
+                    if new_f_value < curr_f_value:
+                        curr_node.g_value = new_g_value
+                        curr_node.f_value = new_f_value
+                        curr_node.action = act
+                        curr_node.cost = cost
+                        curr_node.parent = node_to_expand
+                        self.OPEN[curr_node.state] = (new_f_value, curr_node)
+                        self.CLOSE.remove(next_state)
+                        del self.CLOSED_DICT[next_state]
+                        # after this the node is in OPEN so we're not going to make a duplicate
+                        # is there a need to "reexpand" node after adjusting it while it's in OPEN
 
 
 class IDAStarAgent(Agent):
@@ -331,19 +344,4 @@ class IDAStarAgent(Agent):
             path = self.dfs_f(initial_state, f_limit, env)
             if path is True:
                 return self.current_path, self.current_cost, self.expanded_counter
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
